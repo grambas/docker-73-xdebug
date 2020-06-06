@@ -1,0 +1,60 @@
+version: "3.1"
+services:
+
+    php:
+      container_name: scb-php
+      image: grambas/php73-xdebug:1.0
+      expose:
+        - 9001
+      environment:
+        PHP_XDEBUG_ENABLED: 1
+        XDEBUG_CONFIG: remote_host=172.17.0.1
+      volumes:
+        - ./app:/srv/webcontent
+        - ./docker/php/crons:/etc/cron.d/
+        - ./docker/php/php-ini-overrides.ini:/usr/local/etc/php/conf.d/php-ini-overrides.ini
+      restart: on-failure
+      links:
+        - mysql
+      networks:
+        - scb-network-stack
+
+    mysql:
+      image: mysql:8.0
+      container_name: scb-mysql
+      restart: on-failure
+      environment:
+        MYSQL_ROOT_PASSWORD: wordpress
+        MYSQL_DATABASE: wordpress
+        MYSQL_USER: wordpress
+        MYSQL_PASSWORD: wordpress
+      command:
+        - "--default-authentication-plugin=mysql_native_password"
+      ports:
+        - 3000:3306
+      volumes:
+        - scb-mysql-volume:/var/lib/mysql
+        - ./logs/mysql:/var/log/mysql
+      networks:
+        - scb-network-stack
+
+    nginx:
+      image: nginx:1.15.3-alpine
+      container_name: scb-nginx
+      restart: on-failure
+      volumes:
+        - ./app:/srv/webcontent
+        - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+        - ./logs/nginx:/var/log/nginx:cached
+      ports:
+        - 8003:80
+      depends_on:
+        - php
+      networks:
+        - scb-network-stack
+
+networks:
+  scb-network-stack:
+
+volumes:
+  scb-mysql-volume:
